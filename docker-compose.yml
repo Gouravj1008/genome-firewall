@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: genomefirewall
+      POSTGRES_USER: genome
+      POSTGRES_PASSWORD: genome
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://genome:genome@postgres:5432/genomefirewall
+      JWT_SECRET: genome-firewall-demo-secret
+    ports:
+      - '8000:8000'
+    depends_on:
+      - postgres
+
+  web:
+    build:
+      context: .
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
