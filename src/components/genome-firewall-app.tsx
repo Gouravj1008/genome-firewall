@@ -33,11 +33,37 @@ export default function GenomeFirewallApp() {
   ]);
   const [sourceLabel, setSourceLabel] = useState('Demo Klebsiella pneumoniae isolate');
   const [sourceNotes, setSourceNotes] = useState('Synthetic hospital genome created for the demo.');
+  const [backendStatus, setBackendStatus] = useState<'Checking gateway' | 'Gateway connected' | 'Gateway offline'>('Checking gateway');
+  const [authStatus, setAuthStatus] = useState('JWT demo not connected');
+  const [authToken, setAuthToken] = useState('');
 
   useEffect(() => {
     setSelectedMutation((current) => (analysis.dominantGenes.some((mutation) => mutation.id === current) ? current : analysis.dominantGenes[0]?.id || ''));
     setSelectedAntibiotics((current) => (current.length ? current : analysis.selectedAntibiotics.slice(0, 3).map((item) => item.name)));
   }, [analysis]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkGateway() {
+      try {
+        const response = await fetch('/api/health');
+        if (!cancelled) {
+          setBackendStatus(response.ok ? 'Gateway connected' : 'Gateway offline');
+        }
+      } catch {
+        if (!cancelled) {
+          setBackendStatus('Gateway offline');
+        }
+      }
+    }
+
+    void checkGateway();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const forecast = simulateTimeMachine(analysis.riskScore);
   const labResults = simulateAntibioticLab(analysis.riskScore, selectedAntibiotics);
@@ -64,6 +90,27 @@ export default function GenomeFirewallApp() {
       setSourceNotes('Preloaded demo case with resistance markers, explanation graph, and comparative therapy ranking.');
       setSelectedAntibiotics(['Meropenem', 'Cefiderocol', 'Amikacin']);
     });
+  }
+
+  async function handleDemoAuth() {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'demo', password: 'genome-firewall' })
+      });
+
+      if (!response.ok) {
+        setAuthStatus('JWT demo login failed');
+        return;
+      }
+
+      const payload: { access_token?: string } = await response.json();
+      setAuthToken(payload.access_token ?? '');
+      setAuthStatus('JWT demo access active');
+    } catch {
+      setAuthStatus('JWT demo login unavailable');
+    }
   }
 
   function handleAssistantSend() {
@@ -115,6 +162,25 @@ export default function GenomeFirewallApp() {
               <button onClick={handleReportDownload} className="glass-button flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:text-emerald-100">
                 <Download className="h-4 w-4" />
                 Export PDF report
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Backend gateway</p>
+              <p className="mt-2 text-lg font-semibold text-white">{backendStatus}</p>
+              <p className="mt-1 text-sm text-slate-400">FastAPI /health routed through the Next.js API rewrite.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">JWT auth</p>
+              <p className="mt-2 text-lg font-semibold text-white">{authStatus}</p>
+              <p className="mt-1 truncate text-sm text-slate-400">{authToken ? `${authToken.slice(0, 28)}...` : 'Demo token is loaded only after sign-in.'}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Secure demo access</p>
+              <button onClick={handleDemoAuth} className="mt-3 inline-flex items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/50 hover:bg-cyan-400/15">
+                Connect demo session
               </button>
             </div>
           </div>
