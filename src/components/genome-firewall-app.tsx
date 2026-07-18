@@ -13,6 +13,11 @@ import type { AnalysisResult, AssistantMessage } from '@/lib/types';
 const initialAnalysis = simulateAnalysis('demo-Genome-Firewall-AI');
 
 const chips = ['Demo dataset', 'Upload genome', 'Generate report', 'Clinical assistant'];
+const quickConsults = [
+  'Why is meropenem deprioritized?',
+  'What makes cefiderocol the top option?',
+  'Which mutation drives the highest risk?'
+];
 
 function confidenceBar(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -37,6 +42,9 @@ export default function GenomeFirewallApp() {
   const forecast = simulateTimeMachine(analysis.riskScore);
   const labResults = simulateAntibioticLab(analysis.riskScore, selectedAntibiotics);
   const selectedMutationDetails = analysis.dominantGenes.find((item) => item.id === selectedMutation) ?? analysis.dominantGenes[0];
+  const topAntibiotic = analysis.selectedAntibiotics[0];
+  const topHistoricalCase = analysis.similarCases[0];
+  const topDriver = analysis.featureImportance[0];
 
   async function handleGenomeUpload(file: File) {
     const text = await file.text();
@@ -151,6 +159,24 @@ export default function GenomeFirewallApp() {
                       {chip}
                     </div>
                   ))}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Top signal</p>
+                    <p className="mt-2 text-lg font-semibold text-white">{topDriver?.feature}</p>
+                    <p className="mt-1 text-sm text-slate-400">Contribution weight {(topDriver?.weight ?? 0).toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Top therapy</p>
+                    <p className="mt-2 text-lg font-semibold text-white">{topAntibiotic?.name}</p>
+                    <p className="mt-1 text-sm text-slate-400">{topAntibiotic?.simulatedEfficacy}% simulated efficacy</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/55 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Closest case</p>
+                    <p className="mt-2 text-lg font-semibold text-white">{topHistoricalCase?.isolate}</p>
+                    <p className="mt-1 text-sm text-slate-400">{topHistoricalCase?.similarity}% similarity</p>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -344,6 +370,17 @@ export default function GenomeFirewallApp() {
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <SectionCard title="AI Clinical Assistant" subtitle="Answers are grounded in the simulated evidence profile and resistance mechanisms." badge="Assistant">
             <div className="flex h-full flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+                {quickConsults.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setAssistantInput(prompt)}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-white"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
               <div className="max-h-[350px] overflow-y-auto rounded-[22px] border border-white/10 bg-slate-950/40 p-4">
                 <div className="space-y-3">
                   {assistantMessages.map((message, index) => (
