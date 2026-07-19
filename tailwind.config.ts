@@ -16,11 +16,28 @@ const config = {
         glow: {
           '0%, 100%': { opacity: '0.6' },
           '50%': { opacity: '1' }
+        },
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        'gradient-x': {
+          '0%, 100%': {
+            'background-size': '200% 200%',
+            'background-position': 'left center'
+          },
+          '50%': {
+            'background-size': '200% 200%',
+            'background-position': 'right center'
+          }
         }
       },
       animation: {
         float: 'float 8s ease-in-out infinite',
-        glow: 'glow 5s ease-in-out infinite'
+        glow: 'glow 5s ease-in-out infinite',
+        'fade-in-up': 'fade-in-up 0.8s ease-out forwards',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'gradient-x': 'gradient-x 6s ease infinite'
       }
     }
   },

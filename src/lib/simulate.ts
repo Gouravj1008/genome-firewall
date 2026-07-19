@@ -1,5 +1,5 @@
 import { demoAntibiotics, demoHistoricalCases, demoMutations } from './demo';
-import type { AnalysisResult, AntibioticOutcome, HistoricalCase, TimeMachinePoint } from './types';
+import type { AnalysisResult, AntibioticOutcome, HistoricalCase, LivingTwinState, TimeMachinePoint } from './types';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -84,7 +84,7 @@ export function simulateAntibioticLab(baseScore: number, antibiotics: string[]):
     .filter((item) => antibiotics.length === 0 || antibiotics.includes(item.name))
     .map((item, index) => {
       const efficacy = clamp(item.simulatedEfficacy + (seed % 13) - index * 4 - Math.round(baseScore * 8), 6, 98);
-      const category = efficacy >= 65 ? 'Preferred' : efficacy >= 40 ? 'Conditional' : 'Avoid';
+      const category: AntibioticOutcome['category'] = efficacy >= 65 ? 'Preferred' : efficacy >= 40 ? 'Conditional' : 'Avoid';
       return {
         ...item,
         simulatedEfficacy: efficacy,
@@ -107,4 +107,58 @@ export function answerClinicalQuestion(question: string): string {
     return 'Grounded answer: gyrA target-site alteration weakens fluoroquinolone activity. The assistant would rank this class below aminoglycosides and cefiderocol in the current scenario.';
   }
   return 'Grounded answer: the evidence points to beta-lactamase activity, reduced permeability, and target-site alteration as the main drivers. The safest approach is to prefer the highest-scoring agents, then review culture data, MICs, and infection-site constraints.';
+}
+
+function blendColor(from: [number, number, number], to: [number, number, number], ratio: number): string {
+  const clamped = clamp(ratio, 0, 1);
+  const [fr, fg, fb] = from;
+  const [tr, tg, tb] = to;
+  const r = Math.round(fr + (tr - fr) * clamped);
+  const g = Math.round(fg + (tg - fg) * clamped);
+  const b = Math.round(fb + (tb - fb) * clamped);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+export function simulateLivingTwin(analysis: AnalysisResult, antibiotics: string[], frame: number, horizonHours = 0): LivingTwinState {
+  const selectedPool = analysis.selectedAntibiotics.filter((item) => antibiotics.includes(item.name));
+  const meanEfficacy = selectedPool.length
+    ? selectedPool.reduce((sum, item) => sum + item.simulatedEfficacy, 0) / selectedPool.length
+    : 22;
+  const treatmentStrength = clamp(meanEfficacy / 100, 0.12, 0.96);
+  const horizonPressure = clamp(horizonHours / 72, 0, 1);
+  const pressureOscillation = (Math.sin(frame / 4) + 1) * 0.03;
+  const resistance = clamp(analysis.riskScore + (1 - treatmentStrength) * 0.26 + horizonPressure * 0.17 + pressureOscillation, 0.09, 0.99);
+  const liveConfidence = clamp(analysis.confidence + (treatmentStrength - 0.5) * 0.11 - horizonPressure * 0.12 - (Math.cos(frame / 5) + 1) * 0.01, 0.42, 0.98);
+  const mutationFlux = clamp((1 - treatmentStrength) * 0.92 + horizonPressure * 0.22 + (Math.sin(frame / 3) + 1) * 0.07, 0.04, 0.99);
+
+  const seed = hashString(`${analysis.label}:${antibiotics.join('|')}:${Math.floor(frame)}`);
+  const dominantIndex = Math.floor(frame) % analysis.dominantGenes.length;
+  const mutatingGenes = [
+    analysis.dominantGenes[dominantIndex]?.gene,
+    analysis.dominantGenes[(dominantIndex + 1) % analysis.dominantGenes.length]?.gene,
+  ].filter(Boolean);
+
+  const pathways = [
+    {
+      name: 'Efflux Pump Activation',
+      activation: clamp(0.36 + mutationFlux * 0.52 + horizonPressure * 0.15 + ((seed % 7) / 100), 0.08, 0.99)
+    },
+    {
+      name: 'Cell-Wall Escape',
+      activation: clamp(0.31 + resistance * 0.58 + horizonPressure * 0.12 - treatmentStrength * 0.14, 0.05, 0.99)
+    },
+    {
+      name: 'Target-Site Adaptation',
+      activation: clamp(0.26 + mutationFlux * 0.44 + horizonPressure * 0.14 + (Math.sin(frame / 6) + 1) * 0.08, 0.05, 0.99)
+    }
+  ];
+
+  return {
+    cellColor: blendColor([34, 197, 94], [239, 68, 68], resistance),
+    mutationFlux: Number(mutationFlux.toFixed(2)),
+    liveConfidence: Number(liveConfidence.toFixed(2)),
+    liveResistance: Number(resistance.toFixed(2)),
+    pathways: pathways.map((item) => ({ ...item, activation: Number(item.activation.toFixed(2)) })),
+    mutatingGenes
+  };
 }

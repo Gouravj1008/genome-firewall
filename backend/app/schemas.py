@@ -10,6 +10,12 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=6)
 
 
+class SignupRequest(BaseModel):
+    username: str = Field(min_length=3)
+    password: str = Field(min_length=6)
+    email: str = Field(default="")
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: Literal['bearer'] = 'bearer'
@@ -17,6 +23,7 @@ class TokenResponse(BaseModel):
 
 class AnalysisRequest(BaseModel):
     source: str
+    sample_name: str = Field(default='Uploaded genome')
 
 
 class QuestionRequest(BaseModel):

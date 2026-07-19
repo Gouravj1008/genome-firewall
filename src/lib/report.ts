@@ -44,7 +44,7 @@ export function buildReportMarkup(analysis: AnalysisResult, forecast: TimeMachin
   return `
     <html>
       <head>
-        <title>Genome Firewall AI Report</title>
+        <title>Genome Firewall Report</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 0; background: #07111f; color: #e5eefc; }
           .page { padding: 40px; }
@@ -58,7 +58,7 @@ export function buildReportMarkup(analysis: AnalysisResult, forecast: TimeMachin
       <body>
         <div class="page">
           <div class="card">
-            <h1>Genome Firewall AI - Clinical Resistance Report</h1>
+            <h1>Genome Firewall - Clinical Resistance Report</h1>
             <p class="muted">Generated for demo use. Prediction confidence: ${(analysis.confidence * 100).toFixed(0)}% | Uncertainty: ${(analysis.uncertainty * 100).toFixed(0)}%</p>
             <p>Classification: <strong>${analysis.label}</strong> with a risk score of ${(analysis.riskScore * 100).toFixed(0)}%.</p>
             <p class="muted">Snapshot: top gene ${topGene?.gene ?? 'n/a'}, top therapy ${topAntibiotic?.name ?? 'n/a'}, closest case ${topCase?.isolate ?? 'n/a'}.</p>

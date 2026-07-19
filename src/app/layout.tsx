@@ -7,7 +7,7 @@ const heading = Space_Grotesk({ subsets: ['latin'], variable: '--font-heading' }
 const body = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-body' });
 
 export const metadata: Metadata = {
-  title: 'Genome Firewall AI',
+  title: 'Genome Firewall',
   description: 'Production-quality clinical decision support demo for genome-based antibiotic resistance prediction.'
 };
 

@@ -1,0 +1,136 @@
+{
+  "run_id": "20260719113549",
+  "base_url": "http://127.0.0.1:8001",
+  "started_at_utc": "2026-07-19T11:35:49.256049+00:00",
+  "finished_at_utc": "2026-07-19T11:35:51.574225+00:00",
+  "total_users_requested": 100,
+  "max_workers": 100,
+  "completed_flows": 100,
+  "error_count": 0,
+  "all_users_successful": true,
+  "unique_usernames": 100,
+  "unique_samples": 100,
+  "unique_genomes": 100,
+  "unique_data_verified": true,
+  "total_duration_seconds": 2.3183,
+  "latency_seconds": {
+    "assistant": {
+      "avg": 0.217,
+      "p95": 0.3429,
+      "max": 0.3568
+    },
+    "login": {
+      "avg": 0.2643,
+      "p95": 0.3396,
+      "max": 0.3518
+    },
+    "predict": {
+      "avg": 0.3836,
+      "p95": 0.4463,
+      "max": 1.1533
+    },
+    "signup": {
+      "avg": 0.5194,
+      "p95": 1.0791,
+      "max": 1.1692
+    },
+    "time_machine": {
+      "avg": 0.3281,
+      "p95": 0.4048,
+      "max": 0.4171
+    },
+    "virtual_lab": {
+      "avg": 0.2752,
+      "p95": 0.3772,
+      "max": 0.41
+    }
+  },
+  "sample_failures": [],
+  "sample_successes": [
+    {
+      "user_id": 0,
+      "username": "hacknation_20260719113549_000",
+      "sample_name": "submission-sample-20260719113549-000",
+      "genome_sha256": "4cc4af90246741bddffa01f6e048c4942f65463f505a734738542896e93dbec1",
+      "latency_seconds": {
+        "signup": 0.09053080000012415,
+        "login": 0.1257249000009324,
+        "predict": 0.2603064999966591,
+        "time_machine": 0.39893040000242763,
+        "virtual_lab": 0.4031709000009869,
+        "assistant": 0.303394999999
+      },
+      "risk_score": 0.55,
+      "label": "Elevated resistance risk",
+      "errors": []
+    },
+    {
+      "user_id": 1,
+      "username": "hacknation_20260719113549_001",
+      "sample_name": "submission-sample-20260719113549-001",
+      "genome_sha256": "ec99d7a6de7f4a22b320660c95bf389e5f772c1ad43b3502b8220229cc3223c7",
+      "latency_seconds": {
+        "signup": 0.23869550000017625,
+        "login": 0.22506670000075246,
+        "predict": 0.4396094000003359,
+        "time_machine": 0.41635800000221934,
+        "virtual_lab": 0.2924172999992152,
+        "assistant": 0.31427199999961886
+      },
+      "risk_score": 0.63,
+      "label": "Elevated resistance risk",
+      "errors": []
+    },
+    {
+      "user_id": 2,
+      "username": "hacknation_20260719113549_002",
+      "sample_name": "submission-sample-20260719113549-002",
+      "genome_sha256": "4dfa9a9025c709821cc1521622f37c0ff0c22ef698bf260f90552eed6704b563",
+      "latency_seconds": {
+        "signup": 0.08461779999925056,
+        "login": 0.12012299999696552,
+        "predict": 0.25058849999913946,
+        "time_machine": 0.37442709999959334,
+        "virtual_lab": 0.3821845000020403,
+        "assistant": 0.32278559999758727
+      },
+      "risk_score": 0.64,
+      "label": "Elevated resistance risk",
+      "errors": []
+    },
+    {
+      "user_id": 3,
+      "username": "hacknation_20260719113549_003",
+      "sample_name": "submission-sample-20260719113549-003",
+      "genome_sha256": "51c4b0bd382d7fb53ff34accb8536e520427dab335bcb1e4fd70facee20c3424",
+      "latency_seconds": {
+        "signup": 0.10491109999929904,
+        "login": 0.13328729999921052,
+        "predict": 0.26309589999800664,
+        "time_machine": 0.39193100000193226,
+        "virtual_lab": 0.40484899999864865,
+        "assistant": 0.3081936000016867
+      },
+      "risk_score": 0.71,
+      "label": "High resistance risk",
+      "errors": []
+    },
+    {
+      "user_id": 4,
+      "username": "hacknation_20260719113549_004",
+      "sample_name": "submission-sample-20260719113549-004",
+      "genome_sha256": "70478af93cc9df088541f85c49ec0f4f93774afa129016aa9ed963c82c7cd328",
+      "latency_seconds": {
+        "signup": 0.13706729999830713,
+        "login": 0.16751949999888893,
+        "predict": 0.75211230000059,
+        "time_machine": 0.36201190000065253,
+        "virtual_lab": 0.30247849999796017,
+        "assistant": 0.267999100000452
+      },
+      "risk_score": 0.53,
+      "label": "Elevated resistance risk",
+      "errors": []
+    }
+  ]
+}

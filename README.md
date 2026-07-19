@@ -1,4 +1,4 @@
-# Genome Firewall AI
+# Genome Firewall
 
 A premium clinical decision support demo for antibiotic resistance prediction from bacterial genomes.
 

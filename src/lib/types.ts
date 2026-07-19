@@ -51,3 +51,17 @@ export type TimeMachinePoint = {
   resistanceRisk: number;
   note: string;
 };
+
+export type PathwayActivation = {
+  name: string;
+  activation: number;
+};
+
+export type LivingTwinState = {
+  cellColor: string;
+  mutationFlux: number;
+  liveConfidence: number;
+  liveResistance: number;
+  pathways: PathwayActivation[];
+  mutatingGenes: string[];
+};

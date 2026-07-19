@@ -2,9 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import type { LivingTwinState } from '@/lib/types';
 
-export function GenomeHelix() {
+type GenomeHelixProps = {
+  twinState: LivingTwinState;
+};
+
+export function GenomeHelix({ twinState }: GenomeHelixProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const twinRef = useRef<LivingTwinState>(twinState);
+
+  useEffect(() => {
+    twinRef.current = twinState;
+  }, [twinState]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -57,14 +67,27 @@ export function GenomeHelix() {
     const pulse = new THREE.PointLight(0x22d3ee, 1.8, 35);
     pulse.position.set(0, 0, 8);
     scene.add(pulse);
+    const targetColor = new THREE.Color(0x22d3ee);
+    const partnerTarget = new THREE.Color(0x34d399);
 
     let frame = 0;
     const animate = () => {
+      const twin = twinRef.current;
+      targetColor.set(twin.cellColor);
+      partnerTarget.set('#7dd3fc').lerp(targetColor, 0.42);
+      helixMaterial.color.lerp(targetColor, 0.06);
+      helixMaterial.emissive.set(targetColor).multiplyScalar(0.2 + twin.mutationFlux * 0.35);
+      partnerMaterial.color.lerp(partnerTarget, 0.05);
+      partnerMaterial.emissive.set(partnerTarget).multiplyScalar(0.2 + twin.pathways[0].activation * 0.2);
+
       frame += 0.0035;
-      group.rotation.y = frame * 1.25;
-      group.rotation.x = Math.sin(frame * 0.8) * 0.12;
+      const spin = 1.0 + twin.mutationFlux * 1.4;
+      group.rotation.y = frame * 1.25 * spin;
+      group.rotation.x = Math.sin(frame * 0.8 * spin) * (0.1 + twin.mutationFlux * 0.08);
       pulse.position.x = Math.sin(frame * 2.1) * 5;
       pulse.position.z = Math.cos(frame * 1.7) * 7;
+      pulse.color.set(targetColor);
+      pulse.intensity = 1.1 + twin.pathways[1].activation * 2.1;
       renderer.render(scene, camera);
       requestId = window.requestAnimationFrame(animate);
     };

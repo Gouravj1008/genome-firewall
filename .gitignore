@@ -13,3 +13,8 @@ backend/.venv
 backend/.pytest_cache
 *.pyc
 .DS_Store
+*.tsbuildinfo
+backend/*.db
+artifacts/*.db
+artifacts/*.db-shm
+artifacts/*.db-wal

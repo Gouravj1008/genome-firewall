@@ -5,12 +5,14 @@ import { Download, FileUp, Microscope, Sparkles, Stethoscope, Wand2 } from 'luci
 import { GenomeHelix } from './genome-helix';
 import { PlotlyPanel } from './plotly-panel';
 import { SectionCard } from './section-card';
+import { MutationTrustCard } from './mutation-trust-card';
 import { buildReportMarkup } from '@/lib/report';
 import { demoTrendData, evidenceNotes } from '@/lib/demo';
-import { answerClinicalQuestion, simulateAnalysis, simulateAntibioticLab, simulateTimeMachine } from '@/lib/simulate';
+import { answerClinicalQuestion, simulateAnalysis, simulateAntibioticLab, simulateLivingTwin, simulateTimeMachine } from '@/lib/simulate';
 import type { AnalysisResult, AssistantMessage } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
-const initialAnalysis = simulateAnalysis('demo-Genome-Firewall-AI');
+const initialAnalysis = simulateAnalysis('demo-Genome-Firewall');
 
 const chips = ['Demo dataset', 'Upload genome', 'Generate report', 'Clinical assistant'];
 const quickConsults = [
@@ -18,6 +20,15 @@ const quickConsults = [
   'What makes cefiderocol the top option?',
   'Which mutation drives the highest risk?'
 ];
+
+const timelineStops = [
+  { label: 'Today', horizon: 'Today', hours: 0 },
+  { label: '24 Hours', horizon: '24h', hours: 24 },
+  { label: '48 Hours', horizon: '48h', hours: 48 },
+  { label: '72 Hours', horizon: '72h', hours: 72 }
+] as const;
+
+const emergentMutationLabels = ['acrAB-tolC upregulation', 'ompK36 truncation', 'pmrB adaptive switch'];
 
 function confidenceBar(value: number) {
   return `${Math.round(value * 100)}%`;
@@ -36,6 +47,19 @@ export default function GenomeFirewallApp() {
   const [backendStatus, setBackendStatus] = useState<'Checking gateway' | 'Gateway connected' | 'Gateway offline'>('Checking gateway');
   const [authStatus, setAuthStatus] = useState('JWT demo not connected');
   const [authToken, setAuthToken] = useState('');
+  const [liveFrame, setLiveFrame] = useState(0);
+  const [selectedTimelineIndex, setSelectedTimelineIndex] = useState(0);
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('genome_token');
+    if (!token) {
+      router.push('/login');
+    } else {
+      setAuthToken(token);
+      setAuthStatus('Authenticated');
+    }
+  }, [router]);
 
   useEffect(() => {
     setSelectedMutation((current) => (analysis.dominantGenes.some((mutation) => mutation.id === current) ? current : analysis.dominantGenes[0]?.id || ''));
@@ -65,8 +89,35 @@ export default function GenomeFirewallApp() {
     };
   }, []);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setLiveFrame((current) => current + 1);
+    }, 900);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
   const forecast = simulateTimeMachine(analysis.riskScore);
-  const labResults = simulateAntibioticLab(analysis.riskScore, selectedAntibiotics);
+  const timelineForecast = [
+    {
+      horizon: 'Today' as const,
+      resistanceRisk: analysis.riskScore,
+      note: 'Baseline profile from the current isolate before projected selective pressure.'
+    },
+    ...forecast
+  ];
+  const selectedTimeline = timelineStops[selectedTimelineIndex];
+  const selectedTimelinePoint = timelineForecast[selectedTimelineIndex];
+  const baselineLabResults = simulateAntibioticLab(analysis.riskScore, selectedAntibiotics);
+  const labResults = simulateAntibioticLab(selectedTimelinePoint.resistanceRisk, selectedAntibiotics);
+  const twin = simulateLivingTwin(analysis, selectedAntibiotics, liveFrame + selectedTimeline.hours * 0.12, selectedTimeline.hours);
+  const emergentMutations = [
+    ...analysis.dominantGenes.slice(0, Math.min(analysis.dominantGenes.length, selectedTimelineIndex + 1)).map((item) => item.gene),
+    ...emergentMutationLabels.slice(0, Math.max(0, selectedTimelineIndex - 1))
+  ];
+  const liveUncertainty = Number((1 - twin.liveConfidence).toFixed(2));
   const selectedMutationDetails = analysis.dominantGenes.find((item) => item.id === selectedMutation) ?? analysis.dominantGenes[0];
   const topAntibiotic = analysis.selectedAntibiotics[0];
   const topHistoricalCase = analysis.similarCases[0];
@@ -93,6 +144,8 @@ export default function GenomeFirewallApp() {
   }
 
   async function handleDemoAuth() {
+    setAuthStatus('Connecting demo session...');
+
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -101,16 +154,25 @@ export default function GenomeFirewallApp() {
       });
 
       if (!response.ok) {
-        setAuthStatus('JWT demo login failed');
-        return;
+        throw new Error('Demo login failed');
       }
 
-      const payload: { access_token?: string } = await response.json();
-      setAuthToken(payload.access_token ?? '');
-      setAuthStatus('JWT demo access active');
+      const data = (await response.json()) as { access_token?: string };
+      if (!data.access_token) {
+        throw new Error('Demo login did not return a token');
+      }
+
+      localStorage.setItem('genome_token', data.access_token);
+      setAuthToken(data.access_token);
+      setAuthStatus('Demo session connected');
     } catch {
-      setAuthStatus('JWT demo login unavailable');
+      setAuthToken('');
+      setAuthStatus('Demo auth unavailable');
     }
+  }
+  function handleLogout() {
+    localStorage.removeItem('genome_token');
+    router.push('/login');
   }
 
   function handleAssistantSend() {
@@ -141,13 +203,13 @@ export default function GenomeFirewallApp() {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-cyan-200/80">
-                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1">Genome Firewall AI</span>
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1">Genome Firewall</span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Clinical decision support</span>
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1">Simulation mode</span>
               </div>
               <div className="max-w-4xl space-y-3">
                 <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                  Predict antibiotic resistance from bacterial genomes with transparent, hospital-grade AI.
+                  Predict antibiotic resistance from bacterial genomes with transparent, hospital-grade analysis.
                 </h1>
                 <p className="max-w-3xl text-sm leading-6 text-slate-300 sm:text-base">
                   Upload a bacterial genome or use the demo isolate, inspect the model rationale, explore mutations in 3D, compare simulated therapies, and export a polished clinical report.
@@ -159,7 +221,10 @@ export default function GenomeFirewallApp() {
                 <Sparkles className="h-4 w-4" />
                 Load demo isolate
               </button>
-              <button onClick={handleReportDownload} className="glass-button flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:text-emerald-100">
+              <button onClick={handleLogout} className="glass-button flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 hover:text-red-300">
+                Logout
+              </button>
+              <button onClick={handleReportDownload} className="glass-button col-span-2 flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition hover:border-emerald-300/40 hover:text-emerald-100">
                 <Download className="h-4 w-4" />
                 Export PDF report
               </button>
@@ -255,22 +320,65 @@ export default function GenomeFirewallApp() {
                       </div>
                       <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-right">
                         <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-200">Confidence</p>
-                        <p className="text-lg font-semibold text-white">{confidenceBar(analysis.confidence)}</p>
+                        <p className="text-lg font-semibold text-white">{confidenceBar(twin.liveConfidence)}</p>
                       </div>
                     </div>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Uncertainty</p>
                     <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
-                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400" style={{ width: `${analysis.confidence * 100}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400" style={{ width: `${twin.liveConfidence * 100}%` }} />
                     </div>
-                    <p className="mt-3 text-sm text-slate-300">{(analysis.uncertainty * 100).toFixed(0)}% uncertainty with calibrated risk bands.</p>
+                    <p className="mt-3 text-sm text-slate-300">{(liveUncertainty * 100).toFixed(0)}% uncertainty with continuously updating confidence bands.</p>
                   </div>
                 </div>
               </div>
 
               <div className="rounded-[28px] border border-white/10 bg-slate-950/40 p-3">
-                <GenomeHelix />
+                <GenomeHelix twinState={twin} />
+                <div className="mt-3 space-y-3 rounded-2xl border border-white/10 bg-slate-950/55 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">Living digital twin</p>
+                    <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-slate-300">Real-time simulation</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Cell state</p>
+                      <div className="mx-auto mt-2 h-4 w-10 rounded-full border border-white/20" style={{ backgroundColor: twin.cellColor }} />
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Mutation flux</p>
+                      <p className="mt-2 text-base font-semibold text-white">{Math.round(twin.mutationFlux * 100)}%</p>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Live resistance</p>
+                      <p className="mt-2 text-base font-semibold text-white">{Math.round(twin.liveResistance * 100)}%</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {twin.pathways.map((pathway) => (
+                      <div key={pathway.name}>
+                        <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-slate-400">
+                          <span>{pathway.name}</span>
+                          <span>{Math.round(pathway.activation * 100)}%</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-emerald-400 to-rose-400"
+                            style={{ width: `${pathway.activation * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {twin.mutatingGenes.map((gene) => (
+                      <span key={gene} className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-100">
+                        {gene}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -302,22 +410,12 @@ export default function GenomeFirewallApp() {
                   ))}
                 </div>
               </div>
-              <div className="rounded-[22px] border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm font-semibold text-white">Biological significance</p>
-                <div className="mt-4 space-y-3 text-sm text-slate-300">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Selected mutation</p>
-                    <p className="mt-1 text-base font-semibold text-white">{selectedMutationDetails?.gene}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Mechanism</p>
-                    <p className="mt-1 leading-6">{selectedMutationDetails?.significance}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Evidence note</p>
-                    <p className="mt-1 leading-6 text-slate-400">{selectedMutationDetails?.evidence}</p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-center">
+                <MutationTrustCard 
+                  gene={selectedMutationDetails?.gene ?? 'gyrA'}
+                  mutation={selectedMutationDetails?.change ?? 'Ser83Leu'}
+                  reason={selectedMutationDetails?.significance ?? 'This mutation changes the binding site of Ciprofloxacin, making the drug ineffective.'}
+                />
               </div>
             </div>
           </SectionCard>
@@ -354,11 +452,11 @@ export default function GenomeFirewallApp() {
                 <div className="flex items-end justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Model confidence</p>
-                    <p className="mt-2 text-3xl font-semibold text-white">{confidenceBar(analysis.confidence)}</p>
+                    <p className="mt-2 text-3xl font-semibold text-white">{confidenceBar(twin.liveConfidence)}</p>
                   </div>
                   <div className="w-36">
                     <div className="h-2 rounded-full bg-slate-800">
-                      <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-sky-400" style={{ width: `${analysis.confidence * 100}%` }} />
+                      <div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-sky-400" style={{ width: `${twin.liveConfidence * 100}%` }} />
                     </div>
                     <p className="mt-2 text-right text-xs uppercase tracking-[0.24em] text-slate-500">calibrated</p>
                   </div>
@@ -373,23 +471,66 @@ export default function GenomeFirewallApp() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Explainable AI analytics" subtitle="Feature importance, outbreak trends, and simulated resistance trajectories in one view." badge="Analytics">
+        <SectionCard title="Explainable analytics" subtitle="Feature importance, outbreak trends, and simulated resistance trajectories in one view." badge="Analytics">
           <PlotlyPanel analysis={analysis} forecast={forecast} trendData={demoTrendData} />
         </SectionCard>
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <SectionCard title="Resistance Time Machine" subtitle="Simulation only. Forecasts show how the resistance profile may shift at 24, 48, and 72 hours under continued pressure." badge="Simulation">
-            <div className="grid gap-4 md:grid-cols-3">
-              {forecast.map((point) => (
-                <div key={point.horizon} className="rounded-[22px] border border-white/10 bg-slate-950/40 p-4">
-                  <p className="text-xs uppercase tracking-[0.28em] text-slate-400">{point.horizon}</p>
-                  <p className="mt-2 text-3xl font-semibold text-white">{(point.resistanceRisk * 100).toFixed(0)}%</p>
-                  <div className="mt-3 h-2 rounded-full bg-slate-800">
-                    <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-rose-400" style={{ width: `${point.resistanceRisk * 100}%` }} />
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-slate-300">{point.note}</p>
+          <SectionCard title="Resistance Time Machine" subtitle="Simulation story mode. Move the timeline and watch the bacteria evolve, mutate, and alter treatment outcomes." badge="Simulation">
+            <div className="space-y-5">
+              <div className="rounded-[22px] border border-white/10 bg-slate-950/40 p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Timeline control</p>
+                  <span className="rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-100">
+                    {selectedTimeline.label}
+                  </span>
                 </div>
-              ))}
+                <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+                  {timelineStops.map((stop, index) => (
+                    <button
+                      key={stop.label}
+                      onClick={() => setSelectedTimelineIndex(index)}
+                      className={`rounded-xl border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] transition ${selectedTimelineIndex === index ? 'border-cyan-300/40 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+                    >
+                      {stop.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={timelineStops.length - 1}
+                  step={1}
+                  value={selectedTimelineIndex}
+                  onChange={(event) => setSelectedTimelineIndex(Number(event.target.value))}
+                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-cyan-400"
+                  aria-label="Resistance time machine horizon"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Bacteria evolution</p>
+                  <p className="mt-2 text-3xl font-semibold text-white">{(selectedTimelinePoint.resistanceRisk * 100).toFixed(0)}%</p>
+                  <div className="mt-3 h-2 rounded-full bg-slate-800">
+                    <div className="h-2 rounded-full bg-gradient-to-r from-amber-400 to-rose-400" style={{ width: `${selectedTimelinePoint.resistanceRisk * 100}%` }} />
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">{selectedTimelinePoint.note}</p>
+                  <p className="mt-2 text-sm text-slate-400">Live confidence shifts to {confidenceBar(twin.liveConfidence)} as pathways activate under projected pressure.</p>
+                </div>
+
+                <div className="rounded-[22px] border border-white/10 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Mutations emerging</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {emergentMutations.map((gene) => (
+                      <span key={gene} className="rounded-full border border-rose-300/30 bg-rose-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-100">
+                        {gene}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-sm text-slate-400">Pathway activation now ranges from {Math.round(twin.pathways[0].activation * 100)}% to {Math.round(twin.pathways[2].activation * 100)}%.</p>
+                </div>
+              </div>
             </div>
           </SectionCard>
 
@@ -420,6 +561,14 @@ export default function GenomeFirewallApp() {
                       <div className="text-right">
                         <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Simulated efficacy</p>
                         <p className="text-2xl font-semibold text-white">{item.simulatedEfficacy}%</p>
+                        <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                          {(() => {
+                            const baseline = baselineLabResults.find((baseItem) => baseItem.name === item.name)?.simulatedEfficacy ?? item.simulatedEfficacy;
+                            const delta = item.simulatedEfficacy - baseline;
+                            const sign = delta > 0 ? '+' : '';
+                            return `${sign}${delta}% vs today`;
+                          })()}
+                        </p>
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-400">
@@ -434,7 +583,7 @@ export default function GenomeFirewallApp() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <SectionCard title="AI Clinical Assistant" subtitle="Answers are grounded in the simulated evidence profile and resistance mechanisms." badge="Assistant">
+          <SectionCard title="Clinical Assistant" subtitle="Answers are grounded in the simulated evidence profile and resistance mechanisms." badge="Assistant">
             <div className="flex h-full flex-col gap-3">
               <div className="flex flex-wrap gap-2">
                 {quickConsults.map((prompt) => (

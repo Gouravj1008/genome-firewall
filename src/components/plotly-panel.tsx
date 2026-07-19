@@ -9,7 +9,16 @@ type PlotProps = {
   trendData: TrendPoint[];
 };
 
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false }) as any;
+type PlotlyComponentProps = {
+  data?: unknown[];
+  layout?: Record<string, unknown>;
+  config?: Record<string, unknown>;
+};
+
+const Plot = dynamic<PlotlyComponentProps>(
+  () => import('react-plotly.js').then((module) => module.default),
+  { ssr: false }
+);
 
 export function PlotlyPanel({ analysis, forecast, trendData }: PlotProps) {
   const featureImportance = {
